@@ -4,6 +4,7 @@
   "description": "A Node.js RESTful API project (Build a quiz API)",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
     "serve": "nodemon server.js",
     "test": "jest",
     "testcoverage": "jest --coverage"
