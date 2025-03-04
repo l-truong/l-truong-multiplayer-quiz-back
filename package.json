@@ -1,0 +1,45 @@
+{
+  "name": "back",
+  "version": "1.0.0",
+  "description": "A Node.js RESTful API project (Build a quiz API)",
+  "main": "index.js",
+  "scripts": {
+    "serve": "nodemon server.js",
+    "test": "jest",
+    "testcoverage": "jest --coverage"
+  },
+  "keywords": [
+    "node",
+    "restful",
+    "api"
+  ],
+  "author": "Laura Truong",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongodb": "^6.10.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.4",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongoose": "^8.8.1",
+    "nodemon": "^3.1.7",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|js)$",
+    "roots": [
+      "<rootDir>/tests"
+    ]
+  }
+}
