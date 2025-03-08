@@ -462,7 +462,8 @@ function initSocket(server) {
         
         return {
           roundIndex: roundIndex,
-          playersScore: playersScore
+          playersScore: playersScore,
+          questions: round.questions
         };
       });
 
@@ -483,7 +484,6 @@ function initSocket(server) {
       });
 
       io.to(roomId).emit('resultsInRoom', {
-        questions: room.rounds[currentRound].questions,
         allPlayersScores: allPlayersScores,
         allPlayersFinalResult: allPlayersFinalResult
       });
