@@ -8,6 +8,7 @@ https://l-truong-multiplayer-quiz-app.netlify.app/home
 
 
 ## Project setup
+### Installation
 ```
 npm install
 ```
