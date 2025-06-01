@@ -31,4 +31,5 @@ npm run testcoverage
 ### Customize configuration
 ```
 \config\roomConfig.js
+\config\apiConfig.js
 ```

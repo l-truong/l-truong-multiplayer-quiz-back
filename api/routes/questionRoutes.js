@@ -1,11 +1,28 @@
+const { QUESTION_QUESTIONTEXT_MIN_LENGTH, QUESTION_QUESTIONTEXT_MAX_LENGTH, QUESTION_MAX_OPTIONS,
+    QUESTION_ANSWER_MIX_LENGTH, QUESTION_ANSWER_MAX_LENGTH, QUESTION_EXPLANATION_MIN_LENGTH, 
+    QUESTION_EXPLANATION_MAX_LENGTH, QUESTION_IMAGEURL_MIN_LENGTH, QUESTION_IMAGEURL_MAX_LENGTH } = require('../../config/apiConfig');
+// Core modules
 const express = require('express');
 const multer = require('multer');
 const mongoose = require('mongoose');
-const router = express.Router();
-const upload = multer();
+// Custom middlewares and models
+const authenticateToken = require('../../middlewares/authenticateToken');
 const Question = require('../models/question');
 const Category = require('../models/category');
+// Router and upload setup
+const router = express.Router();
+const upload = multer();
+// Utility functions
+const { checkMissingParams, checkInvalidTypes, validateStringLength } = require('../../utils/validators');
 
+const EXPECTED_TYPES = {
+    questionText: 'string',
+    explanation: 'string',
+    options: 'string',
+    correctAnswer: 'string',
+    categoryId: 'string',
+    imageUrl: 'string'
+};
 
 /********/
 /* GET */
@@ -17,7 +34,7 @@ router.get('/', async (req, res) => {
         if (req.query.categories !== undefined) {
             let categories = null;
 
-            if (typeof req.query.categories === 'string') {
+            if (typeof req.query.categories === EXPECTED_TYPES.categoryId) {
                 categories = [req.query.categories];
             } else {
                 categories = req.query.categories
@@ -83,7 +100,7 @@ router.get('/eng', async (req, res, next) => {
         if (req.query.categories !== undefined) {
             let categories = null;
 
-            if (typeof req.query.categories === 'string') {
+            if (typeof req.query.categories === EXPECTED_TYPES.categoryId) {
                 categories = [req.query.categories];
             } else {
                 categories = req.query.categories
@@ -159,7 +176,7 @@ router.get('/fr', async (req, res, next) => {
         if (req.query.categories !== undefined) {
             let categories = null;
 
-            if (typeof req.query.categories === 'string') {
+            if (typeof req.query.categories === EXPECTED_TYPES.categoryId) {
                 categories = [req.query.categories];
             } else {
                 categories = req.query.categories
@@ -222,10 +239,10 @@ router.get('/random/:random?', async (req, res) => {
 
     // Check if random parameter is a number and positif
     const length = parseInt(random, 10);
-    if (isNaN(length) || length < 1) {
+    if (isNaN(length) || length < 1 || length > 50) {
         return res.status(404).json({ 
             message: 'An error occurred', 
-            error: 'Parameter must be a positive number' 
+            error: 'Parameter must be a positive number and under 50' 
         });
     }
 
@@ -235,7 +252,7 @@ router.get('/random/:random?', async (req, res) => {
         if (req.query.categories !== undefined) {
             let categories = null;
 
-            if (typeof req.query.categories === 'string') {
+            if (typeof req.query.categories === EXPECTED_TYPES.categoryId) {
                 categories = [req.query.categories];
             } else {
                 categories = req.query.categories
@@ -351,6 +368,13 @@ router.get('/stats/:lang?', async (req, res, next) => {
 
 // Get one question
 router.get('/:id', async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            message: 'An error occurred',
+            error: 'Invalid question ID format'
+        });
+    }
+
     let question;
     try {
         question = await Question.findById(req.params.id);
@@ -378,7 +402,7 @@ router.get('/:id', async (req, res, next) => {
 /********/
 
 // Create a new question
-router.post('/', async (req, res, next) => {
+router.post('/', authenticateToken, async (req, res, next) => {
     let categories;
     try { 
         categories = await Category.find();
@@ -398,14 +422,8 @@ router.post('/', async (req, res, next) => {
     next();
 }, async (req, res) => { 
     // Check for missing parameters
-    const missingParams = [];
     const requiredParams = ['questionText', 'options', 'correctAnswer', 'categoryId', 'imageUrl'];
-
-    requiredParams.forEach(param => {
-        if (req.body[param] === undefined || req.body[param] === null || req.body[param] === '') {
-            missingParams.push(param);
-        }
-    });
+    const missingParams = checkMissingParams(req.body, requiredParams);
 
     if (missingParams.length > 0) {
         return res.status(400).json({
@@ -415,23 +433,23 @@ router.post('/', async (req, res, next) => {
         });
     }
 
-    // Check if options parameter is an array and has exactly 4 elements
-    if (!Array.isArray(req.body.options) || req.body.options.length !== 4) {
+    // Check if options parameter is an array and has exactly QUESTION_MAX_OPTIONS elements
+    if (!Array.isArray(req.body.options) || req.body.options.length !== QUESTION_MAX_OPTIONS) {
         return res.status(400).json({
             message: 'An error occurred',
-            error: 'Options must be an array of exactly 4 elements',
+            error: `Options must be an array of exactly ${QUESTION_MAX_OPTIONS} elements`,
             invalidParams: {
                 options: req.body.options
             }
         });
     }
 
-    // Check for null or empty elements in options parameter
-    const hasInvalidOptions = req.body.options.some(option => option === null || option === '');
+    // Check for invalid elements in options parameter
+    const hasInvalidOptions = req.body.options.some(option => option === null || option === '' || typeof option !== EXPECTED_TYPES.options);
     if (hasInvalidOptions) {
         return res.status(400).json({
             message: 'An error occurred',
-            error: 'Options cannot contain null or empty elements',
+            error: 'Options are in wrong format, it\'s cannot contain null or empty elements either',
             invalidParams: {
                 options: req.body.options
             }
@@ -450,30 +468,55 @@ router.post('/', async (req, res, next) => {
         });
     }
 
-    // Check if rest of parameters are strings
-    const invalidParams = {};
-    if (typeof req.body.questionText !== 'string') {
-        invalidParams.questionText = req.body.questionText;
-    }
-    if (typeof req.body.correctAnswer !== 'string') {
-        invalidParams.correctAnswer = req.body.correctAnswer;
-    }
-    if (req.body.explanation !== undefined && typeof req.body.explanation !== 'string') {
+    // Check if parameters are  in valid format
+    const expectedTypes = Object.fromEntries(
+        Object.entries(EXPECTED_TYPES).filter(([key]) => key !== 'options')
+    );
+    const invalidParams = checkInvalidTypes(req.body, expectedTypes);
+    if (req.body.explanation !== undefined && typeof req.body.explanation !== EXPECTED_TYPES.explanation) {
         invalidParams.explanation = req.body.explanation;
     }
-    if (typeof req.body.categoryId !== 'string') {
-        invalidParams.categoryId = req.body.categoryId;
-    }
-    if (typeof req.body.imageUrl !== 'string') {
-        invalidParams.imageUrl = req.body.imageUrl;
-    }
 
-    // If there are invalid parameters, return an error response
     if (Object.keys(invalidParams).length > 0) {
         return res.status(400).json({
             message: 'An error occurred', 
-            error: 'Parameters must be strings',
+            error: 'Parameters are in wrong formats',
             invalidParams
+        });
+    }
+
+    // Performance and abuse safeguard
+    const invalidLength = [];
+
+    const questionTextError = validateStringLength('Question Text', req.body.questionText, QUESTION_QUESTIONTEXT_MIN_LENGTH, QUESTION_QUESTIONTEXT_MAX_LENGTH);
+    if (questionTextError) {
+        invalidLength.push(questionTextError);
+    }
+    const optionsError = req.body.options.some(option => option.length < QUESTION_ANSWER_MIX_LENGTH || option.length > QUESTION_ANSWER_MAX_LENGTH);
+    if (optionsError) {
+        invalidLength.push(`All options answers must be between ${QUESTION_ANSWER_MIX_LENGTH} and ${QUESTION_ANSWER_MAX_LENGTH} characters`);
+    }
+    const correctAnswerError = validateStringLength('Correct Answer', req.body.correctAnswer, QUESTION_ANSWER_MIX_LENGTH, QUESTION_ANSWER_MAX_LENGTH);
+    if (correctAnswerError) {
+        invalidLength.push(correctAnswerError);
+    }    
+    const explanationError = validateStringLength('Explanation', req.body.explanation, QUESTION_EXPLANATION_MIN_LENGTH, QUESTION_EXPLANATION_MAX_LENGTH);
+    if (explanationError) {
+        invalidLength.push(explanationError);
+    }
+    if (!mongoose.Types.ObjectId.isValid(req.body.categoryId)) {
+        invalidLength.push('Invalid category ID format');
+    }
+    const imageUrlError = validateStringLength('Image Url', req.body.imageUrl, QUESTION_IMAGEURL_MIN_LENGTH, QUESTION_IMAGEURL_MAX_LENGTH);
+    if (imageUrlError) {
+        invalidLength.push(imageUrlError);
+    }
+        
+    if (invalidLength.length > 0) {
+        return res.status(400).json({
+            message: 'An error occurred', 
+            error: 'Validation failed',
+            invalidLength
         });
     }
 
@@ -521,7 +564,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Create a list of questions
-router.post('/bulk', async (req, res, next) => { 
+router.post('/bulk', authenticateToken, async (req, res, next) => { 
     let categories;
     try {
         categories = await Category.find();
@@ -559,14 +602,8 @@ router.post('/bulk', async (req, res, next) => {
 
         for (const questionData of questions) {
             // Check for missing parameters
-            const missingParams = [];
             const requiredParams = ['questionText', 'options', 'correctAnswer', 'categoryId', 'imageUrl'];
-
-            requiredParams.forEach(param => {
-                if (questionData[param] === undefined || questionData[param] === null || questionData[param] === '') {
-                    missingParams.push(param);
-                }
-            });
+            const missingParams = checkMissingParams(questionData, requiredParams);
 
             if (missingParams.length > 0) {
                 errors.push({
@@ -576,9 +613,9 @@ router.post('/bulk', async (req, res, next) => {
                 });
             }
 
-            if (!missingParams.includes('options') && (!Array.isArray(questionData.options) || questionData.options.length !== 4)) {
+            if (!missingParams.includes('options') && (!Array.isArray(questionData.options) || questionData.options.length !== QUESTION_MAX_OPTIONS)) {
                 errors.push({
-                    error: 'Options must be an array of exactly 4 elements',
+                    error: `Options must be an array of exactly ${QUESTION_MAX_OPTIONS} elements`,
                     question: questionData,
                     invalidParams: {
                         options: questionData.options
@@ -587,10 +624,10 @@ router.post('/bulk', async (req, res, next) => {
             }
 
             if(!missingParams.includes('options')) {
-                const hasInvalidOptions = questionData.options.some(option => option === null || option === '');
+                const hasInvalidOptions = questionData.options.some(option => option === null || option === '' || typeof option !== EXPECTED_TYPES.options);
                 if (hasInvalidOptions) {
                     errors.push({
-                        error: 'Options cannot contain null or empty elements',
+                        error: 'Options are in wrong format, it\'s cannot contain null or empty elements either',
                         question: questionData,
                         invalidParams: {
                             options: questionData.options
@@ -612,31 +649,88 @@ router.post('/bulk', async (req, res, next) => {
                 }
             }
 
-            const invalidParams = {};
-            if (!missingParams.includes('questionText') && typeof questionData.questionText !== 'string') {
-                invalidParams.questionText = questionData.questionText;
-            }
-            if (!missingParams.includes('correctAnswer') && typeof questionData.correctAnswer !== 'string') {
-                invalidParams.correctAnswer = questionData.correctAnswer;
-            }
-            if (!missingParams.includes('explanation') && questionData.explanation !== undefined && typeof questionData.explanation !== 'string') {
+            // Check if parameters are  in valid format
+            const expectedTypes = Object.fromEntries(
+                Object.entries(EXPECTED_TYPES).filter(([key]) => key !== 'options' && key !== 'explanation')
+            );
+            const invalidParams = checkInvalidTypes(questionData, expectedTypes, { missingParams });
+            if (!missingParams.includes('explanation') && questionData.explanation !== undefined && typeof questionData.explanation !== EXPECTED_TYPES.explanation) {
                 invalidParams.explanation = questionData.explanation;
-            }
-            if (!missingParams.includes('categoryId') && typeof questionData.categoryId !== 'string') {
-                invalidParams.categoryId = questionData.categoryId;
-            }
-            if (!missingParams.includes('imageUrl') && typeof questionData.imageUrl !== 'string') {
-                invalidParams.imageUrl = questionData.imageUrl;
             }
             
             if (Object.keys(invalidParams).length > 0) {
                 errors.push({
-                    error: 'Parameters must be strings',
+                    error: 'Parameters are in wrong formats',
                     question: questionData,
                     invalidParams
                 });
             }
 
+            // Performance and abuse safeguard
+            const questionTextError = validateStringLength('Question Text', questionData.questionText, QUESTION_QUESTIONTEXT_MIN_LENGTH, QUESTION_QUESTIONTEXT_MAX_LENGTH);
+            if (questionTextError) {
+                errors.push({
+                    error: questionTextError,
+                    question: questionData,
+                    invalidParams: {
+                        'questionText': questionData.questionText
+                    }
+                });
+            }
+            if (!missingParams.includes('options')) {
+                const optionsError = questionData.options.some(option => option.length < QUESTION_ANSWER_MIX_LENGTH || option.length > QUESTION_ANSWER_MAX_LENGTH);
+                if (optionsError) {
+                    errors.push({
+                        error: `All options answers must be between ${QUESTION_ANSWER_MIX_LENGTH} and ${QUESTION_ANSWER_MAX_LENGTH} characters`,
+                        question: questionData,
+                        invalidParams: {
+                            'options': questionData.options
+                        }
+                    });
+                }
+            }
+            const correctAnswerError = validateStringLength('Correct Answer', questionData.correctAnswer, QUESTION_ANSWER_MIX_LENGTH, QUESTION_ANSWER_MAX_LENGTH);
+            if (correctAnswerError) {
+                errors.push({
+                    error: correctAnswerError,
+                    question: questionData,
+                    invalidParams: {
+                        'correctAnswer': questionData.correctAnswer
+                    }
+                });
+            }    
+            const explanationError = validateStringLength('Explanation', questionData.explanation, QUESTION_EXPLANATION_MIN_LENGTH, QUESTION_EXPLANATION_MAX_LENGTH);
+            if (explanationError) {
+                errors.push({
+                    error: explanationError,
+                    question: questionData,
+                    invalidParams: {
+                        'explanation': questionData.explanation
+                    }
+                });
+            }
+            const categoryIdError = !missingParams.includes('categoryId') && !invalidParams.hasOwnProperty('categoryId') && !mongoose.Types.ObjectId.isValid(questionData.categoryId);
+            if (categoryIdError) {
+                errors.push({
+                    error: 'Invalid category ID format',
+                    question: questionData,
+                    invalidParams: {
+                        'categoryId': questionData.categoryId
+                    }
+                });
+            }
+            const imageUrlError = validateStringLength('Image Url', questionData.imageUrl, QUESTION_IMAGEURL_MIN_LENGTH, QUESTION_IMAGEURL_MAX_LENGTH);
+            if (imageUrlError) {
+                errors.push({
+                    error: imageUrlError,
+                    question: questionData,
+                    invalidParams: {
+                        'imageUrl': questionData.imageUrl
+                    }
+                });
+            }
+
+            // Check if correctAnswer parameter is included in options parameter
             if (!missingParams.includes('options') && !missingParams.includes('correctAnswer') && 
                 invalidParams.correctAnswer === undefined && questionData.correctAnswer !== undefined && 
                 !questionData.options.includes(questionData.correctAnswer)
@@ -650,7 +744,7 @@ router.post('/bulk', async (req, res, next) => {
                 });
             }
 
-            if (!missingParams.includes('categoryId') && !invalidParams.hasOwnProperty('categoryId')) {
+            if (!missingParams.includes('categoryId') && !invalidParams.hasOwnProperty('categoryId') && !categoryIdError) {
                 // Validate categoryId
                 const categoryExists = res.categories.some(c => c.categoryId.toString() === questionData.categoryId);
                 if (!categoryExists) {
@@ -706,7 +800,7 @@ router.post('/bulk', async (req, res, next) => {
 });
 
 // Create a list of questions from csv
-router.post('/csv', upload.single('questions'), async (req, res, next) => { 
+router.post('/csv', authenticateToken, upload.single('questions'), async (req, res, next) => { 
     let categories;
     try { 
         categories = await Category.find();
@@ -761,21 +855,15 @@ router.post('/csv', upload.single('questions'), async (req, res, next) => {
 
             for (const questionData of questions) {
                 // Check for missing parameters
-                const missingParams = [];
-                const requiredParams = ['questionText', 'correctAnswer', 'categoryId', 'imageUrl'];
-
-                requiredParams.forEach(param => {
-                    if (questionData[param] === '') {
-                        missingParams.push(param);
-                    }
-                });
+                const requiredParams = ['questionText', 'options', 'correctAnswer', 'categoryId', 'imageUrl'];
+                const missingParams = checkMissingParams(questionData, requiredParams);
 
                 if(questionData.options != '[]') {
                     questionData.options = questionData.options.slice(1, -1).split(',').map(options => options.trim());
 
-                    if (!Array.isArray(questionData.options) || questionData.options.length !== 4) {
+                    if (!Array.isArray(questionData.options) || questionData.options.length !== QUESTION_MAX_OPTIONS) {
                         errors.push({
-                            error: 'Options must be an array of exactly 4 elements',
+                            error: `Options must be an array of exactly ${QUESTION_MAX_OPTIONS} elements`,
                             question: questionData,
                             invalidParams: {
                                 options: questionData.options
@@ -786,7 +874,7 @@ router.post('/csv', upload.single('questions'), async (req, res, next) => {
                     const hasInvalidOptions = questionData.options.some(option => option === '');
                     if (hasInvalidOptions) {
                         errors.push({
-                            error: 'Options cannot contain null or empty elements',
+                            error: 'Options are in wrong format, it\'s cannot contain null or empty elements either',
                             question: questionData,
                             invalidParams: {
                                 options: questionData.options
@@ -826,9 +914,74 @@ router.post('/csv', upload.single('questions'), async (req, res, next) => {
                     });
                 }
 
+                // Performance and abuse safeguard
+                const questionTextError = validateStringLength('Question Text', questionData.questionText, QUESTION_QUESTIONTEXT_MIN_LENGTH, QUESTION_QUESTIONTEXT_MAX_LENGTH);
+                if (questionTextError) {
+                    errors.push({
+                        error: questionTextError,
+                        question: questionData,
+                        invalidParams: {
+                            'questionText': questionData.questionText
+                        }
+                    });
+                }
+                if (!missingParams.includes('options')) {
+                    const optionsError = questionData.options.some(option => option.length < QUESTION_ANSWER_MIX_LENGTH || option.length > QUESTION_ANSWER_MAX_LENGTH);     
+                    if (optionsError) {
+                        errors.push({
+                            error: `All options answers must be between ${QUESTION_ANSWER_MIX_LENGTH} and ${QUESTION_ANSWER_MAX_LENGTH} characters`,
+                            question: questionData,
+                            invalidParams: {
+                                'options': questionData.options
+                            }
+                        });
+                    }
+                }
+                const correctAnswerError = validateStringLength('Correct Answer', questionData.correctAnswer, QUESTION_ANSWER_MIX_LENGTH, QUESTION_ANSWER_MAX_LENGTH);
+                if (correctAnswerError) {
+                    errors.push({
+                        error: correctAnswerError,
+                        question: questionData,
+                        invalidParams: {
+                            'correctAnswer': questionData.correctAnswer
+                        }
+                    });
+                }    
+                const explanationError = validateStringLength('Explanation', questionData.explanation, QUESTION_EXPLANATION_MIN_LENGTH, QUESTION_EXPLANATION_MAX_LENGTH);
+                if (explanationError) {
+                    errors.push({
+                        error: explanationError,
+                        question: questionData,
+                        invalidParams: {
+                            'explanation': questionData.explanation
+                        }
+                    });
+                }
                 if (!missingParams.includes('categoryId')) {
-                    // Validate categoryId
-                    const categoryExists = res.categories.some(c => c.categoryId.equals(new mongoose.Types.ObjectId(questionData.categoryId)));
+                    if (!mongoose.Types.ObjectId.isValid(questionData.categoryId)) {
+                        errors.push({
+                            error: 'Invalid category ID format',
+                            question: questionData,
+                            invalidParams: {
+                                'categoryId': questionData.categoryId
+                            }
+                        });
+                    }                    
+                }
+                const imageUrlError = validateStringLength('Image Url', questionData.imageUrl, QUESTION_IMAGEURL_MIN_LENGTH, QUESTION_IMAGEURL_MAX_LENGTH);
+                if (imageUrlError) {
+                    errors.push({
+                        error: imageUrlError,
+                        question: questionData,
+                        invalidParams: {
+                            'imageUrl': questionData.imageUrl
+                        }
+                    });
+                }
+
+                if (!missingParams.includes('categoryId') && mongoose.Types.ObjectId.isValid(questionData.categoryId)) {
+                    const categoryObjectId = new mongoose.Types.ObjectId(questionData.categoryId);
+                    const categoryExists = res.categories.some(c => c.categoryId.equals(categoryObjectId));
                     if (!categoryExists) {
                         errors.push({
                             question: questionData,
@@ -894,28 +1047,29 @@ router.post('/csv', upload.single('questions'), async (req, res, next) => {
 /********/
 
 // Change toutes les id d'une categorie à une autre
-router.patch('/categories//', async (req, res) =>{
+router.patch('/categories//', authenticateToken, async (req, res) =>{
     return res.status(400).json({ 
         message: 'An error occurred',
         error: 'Both oldCategoryId and newCategoryId are required' 
     });
 });
-router.patch('/categories//:newCategoryId', async (req, res) =>{
+router.patch('/categories//:newCategoryId', authenticateToken, async (req, res) =>{
     return res.status(400).json({ 
         message: 'An error occurred',
         error: 'Both oldCategoryId and newCategoryId are required' 
     });
 });
-router.patch('/categories/:oldCategoryId/', async (req, res) =>{
+router.patch('/categories/:oldCategoryId/', authenticateToken, async (req, res) =>{
     return res.status(400).json({ 
         message: 'An error occurred',
         error: 'Both oldCategoryId and newCategoryId are required' 
     });
 });
-router.patch('/categories/:oldCategoryId/:newCategoryId?', async (req, res, next) => {
+router.patch('/categories/:oldCategoryId/:newCategoryId?', authenticateToken, async (req, res, next) => {
     let questions;
     let categories;
     try {
+
         questions = await Question.find();
         if (questions === null) {
             return res.status(404).json({ 
@@ -1012,7 +1166,14 @@ router.patch('/categories/:oldCategoryId/:newCategoryId?', async (req, res, next
 });
 
 // Update question
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', authenticateToken, async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            message: 'An error occurred',
+            error: 'Invalid question ID format'
+        });
+    }
+
     let question;
     let categories;
     try {
@@ -1047,23 +1208,23 @@ router.patch('/:id', async (req, res, next) => {
         // Check options parameter if provided
         if (req.body.options !== undefined && req.body.options !== null) {
             
-            // Check if options parameters is an array and has exactly 4 elements
-            if (!Array.isArray(req.body.options) || req.body.options.length !== 4) {
+            // Check if options parameters is an array and has exactly QUESTION_MAX_OPTIONS elements
+            if (!Array.isArray(req.body.options) || req.body.options.length !== QUESTION_MAX_OPTIONS) {
                 return res.status(400).json({
                     message: 'An error occurred',
-                    error: 'Options must be an array of exactly 4 elements',
+                    error: `Options must be an array of exactly ${QUESTION_MAX_OPTIONS} elements`,
                     invalidParams: {
                         options: req.body.options
                     }
                 });
             }
 
-            // Check for null or empty elements in options parameters
-            const hasInvalidOptions = req.body.options.some(option => option === null || option === '');
+            // Check for invalid elements in options parameter
+            const hasInvalidOptions = req.body.options.some(option => option === null || option === '' || typeof option !== EXPECTED_TYPES.options);
             if (hasInvalidOptions) {
                 return res.status(400).json({
                     message: 'An error occurred',
-                    error: 'Options cannot contain null or empty elements',
+                    error: 'Options are in wrong format, it\'s cannot contain null or empty elements either',
                     invalidParams: {
                         options: req.body.options
                     }
@@ -1101,32 +1262,67 @@ router.patch('/:id', async (req, res, next) => {
             }
         }    
 
-        // Check if rest of parameter are strings
-        const invalidParams = {};
-        
-        // Check if rest of parameters are strings
-        if (req.body.questionText !== undefined && req.body.questionText !== null && req.body.questionText !== '' && typeof req.body.questionText !== 'string') {
-            invalidParams.questionText = req.body.questionText;
-        }
-        if (req.body.correctAnswer !== undefined && req.body.correctAnswer !== null && req.body.correctAnswer !== '' && typeof req.body.correctAnswer !== 'string') {
-            invalidParams.correctAnswer = req.body.correctAnswer;
-        }
-        if (req.body.explanation !== undefined && req.body.explanation !== null && req.body.explanation !== '' && typeof req.body.explanation !== 'string') {
+        // Check if parameters are  in valid format
+        const expectedTypes = Object.fromEntries(
+            Object.entries(EXPECTED_TYPES).filter(([key]) => key !== 'options')
+        );
+        const invalidParams = checkInvalidTypes(req.body, expectedTypes, {  skipIfMissing: true });
+        if (req.body.explanation !== undefined && req.body.explanation !== null && req.body.explanation !== '' && typeof req.body.explanation !== EXPECTED_TYPES.explanation) {
             invalidParams.explanation = req.body.explanation;
-        }    
-        if (req.body.categoryId !== undefined && req.body.categoryId !== null && req.body.categoryId !== '' && typeof req.body.categoryId !== 'string') {
-            invalidParams.categoryId = req.body.categoryId;
-        }
-        if (req.body.imageUrl !== undefined && req.body.imageUrl !== null && req.body.imageUrl !== '' && typeof req.body.imageUrl !== 'string') {
-            invalidParams.imageUrl = req.body.imageUrl;
-        }
+        }  
         
-        // If there are invalid parameters, return an error response
         if (Object.keys(invalidParams).length > 0) {
             return res.status(400).json({
                 message: 'An error occurred',
-                error: 'Parameters must be strings',
+                error: 'Parameters are in wrong formats',
                 invalidParams
+            });
+        }
+
+        // Performance and abuse safeguard
+        const invalidLength = [];
+
+        if (req.body.questionText !== undefined && req.body.questionText !== null && req.body.questionText !== '' && typeof req.body.questionText === EXPECTED_TYPES.questionText) {    
+            const questionTextError = validateStringLength('Question Text', req.body.questionText, QUESTION_QUESTIONTEXT_MIN_LENGTH, QUESTION_QUESTIONTEXT_MAX_LENGTH);
+            if (questionTextError) {
+                invalidLength.push(questionTextError);
+            }
+        }
+        if (req.body.options !== undefined && req.body.options !== null) {    
+            const optionsError = req.body.options.some(option => option.length < QUESTION_ANSWER_MIX_LENGTH || option.length > QUESTION_ANSWER_MAX_LENGTH);
+            if (optionsError) {
+                invalidLength.push(`All options answers must be between ${QUESTION_ANSWER_MIX_LENGTH} and ${QUESTION_ANSWER_MAX_LENGTH} characters`);
+            }
+        }
+        if (req.body.correctAnswer !== undefined && req.body.correctAnswer !== null && req.body.correctAnswer !== '' && typeof req.body.correctAnswer === EXPECTED_TYPES.correctAnswer) {            
+            const correctAnswerError = validateStringLength('Correct Answer', req.body.correctAnswer, QUESTION_ANSWER_MIX_LENGTH, QUESTION_ANSWER_MAX_LENGTH);
+            if (correctAnswerError) {
+                invalidLength.push(correctAnswerError);
+            }    
+        }
+        if (req.body.explanation !== undefined && req.body.explanation !== null && req.body.explanation !== '' && typeof req.body.explanation === EXPECTED_TYPES.explanation) {     
+            const explanationError = validateStringLength('Explanation', req.body.explanation, QUESTION_EXPLANATION_MIN_LENGTH, QUESTION_EXPLANATION_MAX_LENGTH);
+            if (explanationError) {
+                invalidLength.push(explanationError);
+            }
+        }
+        if (req.body.categoryId !== undefined && req.body.categoryId !== null && req.body.categoryId !== '' && typeof req.body.categoryId === EXPECTED_TYPES.categoryId) {     
+            if (!mongoose.Types.ObjectId.isValid(req.body.categoryId)) {
+                invalidLength.push('Invalid category ID format');
+            }
+        }
+        if (req.body.imageUrl !== undefined && req.body.imageUrl !== null && req.body.imageUrl !== '' && typeof req.body.imageUrl === EXPECTED_TYPES.imageUrl) {    
+            const imageUrlError = validateStringLength('Image Url', req.body.imageUrl, QUESTION_IMAGEURL_MIN_LENGTH, QUESTION_IMAGEURL_MAX_LENGTH);
+            if (imageUrlError) {
+                invalidLength.push(imageUrlError);
+            }
+        }
+            
+        if (invalidLength.length > 0) {
+            return res.status(400).json({
+                message: 'An error occurred', 
+                error: 'Validation failed',
+                invalidLength
             });
         }
 
@@ -1217,7 +1413,7 @@ router.patch('/:id', async (req, res, next) => {
 /********/
 
 // Delete all questions
-router.delete('/all', async (req, res) => {
+router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const result = await Question.deleteMany({});
 
@@ -1234,7 +1430,14 @@ router.delete('/all', async (req, res) => {
 });
 
 // Delete question
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticateToken, async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            message: 'An error occurred',
+            error: 'Invalid question ID format'
+        });
+    }
+
     let question;
     try {
         question = await Question.findById(req.params.id);

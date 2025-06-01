@@ -2,7 +2,7 @@ const socket = require('socket.io');
 const Room = require('../api/models/room');
 const { ERROR_MESSAGES } = require('../config/errorMessages');
 const { CHAT_MESSAGES } = require('../config/chatMessages');
-const { MAX_PLAYERS, ROOM_PASSWORD_MAX_LENGTH, ROOM_PASSWORD_ALLOWED_CHARACTERS, ROOM_STATUS } = require('../config/roomConfig');
+const { ROOM_MAX_PLAYERS, ROOM_PASSWORD_MAX_LENGTH, ROOM_PASSWORD_ALLOWED_CHARACTERS, ROOM_STATUS, ROOM_CHAT_MESSAGE_MAX_LENGTH } = require('../config/roomConfig');
 
 function initSocket(server) {
   const io = socket(server, {
@@ -52,7 +52,7 @@ function initSocket(server) {
       rooms[roomId].chatHistory.push(getChatMessages('createdTheGame', username));
       io.to(roomId).emit('chatUpdate', rooms[roomId].chatHistory);
       io.to(roomId).emit('playersInRoom', {
-        maxPlayer: MAX_PLAYERS,
+        maxPlayer: ROOM_MAX_PLAYERS,
         players: rooms[roomId].players
       });
     });
@@ -71,7 +71,7 @@ function initSocket(server) {
         });
         return;
       }
-      if (rooms[roomId].players.length === MAX_PLAYERS) {
+      if (rooms[roomId].players.length === ROOM_MAX_PLAYERS) {
         socket.emit('roomMessageError', {
           message: getErrorMessages('roomIsFull')
         });
@@ -114,7 +114,7 @@ function initSocket(server) {
       rooms[roomId].chatHistory.push(getChatMessages('enteredTheGame', username));
       io.to(roomId).emit('chatUpdate', rooms[roomId].chatHistory);
       io.to(roomId).emit('playersInRoom', {
-        maxPlayer: MAX_PLAYERS,
+        maxPlayer: ROOM_MAX_PLAYERS,
         players: rooms[roomId].players
       });
     });
@@ -153,7 +153,7 @@ function initSocket(server) {
             }
 
             io.to(roomId).emit('playersInRoom', {
-              maxPlayer: MAX_PLAYERS,
+              maxPlayer: ROOM_MAX_PLAYERS,
               players: room.players
             });
             
@@ -249,7 +249,7 @@ function initSocket(server) {
 
       const player = room.players.find((player) => player.id === socket.id);
 
-      if (player) {
+      if (player && message.length <= ROOM_CHAT_MESSAGE_MAX_LENGTH) {
         const playerMessage = `<strong>${player.username}:</strong> ${message}`;
         room.chatHistory.push(playerMessage);
         io.to(roomId).emit('chatUpdate', room.chatHistory);
@@ -272,7 +272,7 @@ function initSocket(server) {
       }
 
       socket.emit('playersInRoom', {
-        maxPlayer: MAX_PLAYERS,
+        maxPlayer: ROOM_MAX_PLAYERS,
         players: room.players
       });
     });

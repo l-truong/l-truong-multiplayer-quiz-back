@@ -1,15 +1,17 @@
+// Core modules
 const express = require('express');
-const multer = require('multer');
-const router = express.Router();
-const upload = multer();
+// Custom middlewares and models
+const authenticateToken = require('../../middlewares/authenticateToken');
 const Room = require('../models/room');
+// Router setup
+const router = express.Router();
 
 /********/
 /* GET */
 /********/
 
 // Get all rooms
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
         const rooms = await Room.find();
         return res.json(rooms);
@@ -27,7 +29,7 @@ router.get('/', async (req, res) => {
 /********/
 
 // Delete all rooms
-router.delete('/all', async (req, res) => {
+router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const result = await Room.deleteMany({});
 

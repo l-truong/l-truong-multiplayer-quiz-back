@@ -1,8 +1,24 @@
+const { LANGUAGE_MIN_LENGTH, LANGUAGE_MAX_LENGTH, CATEGORY_NAME_MIN_LENGTH,
+    CATEGORY_NAME_MAX_LENGTH, CATEGORY_DESCRIPTION_MIN_LENGTH, CATEGORY_DESCRIPTION_MAX_LENGTH } = require('../../config/apiConfig');
+// Core modules
 const express = require('express');
 const multer = require('multer');
+const mongoose = require('mongoose');
+// Custom middlewares and models
+const authenticateToken = require('../../middlewares/authenticateToken');
+const Category = require('../models/category');
+// Router and upload setup
 const router = express.Router();
 const upload = multer();
-const Category = require('../models/category');
+// Utility functions
+const { checkMissingParams, checkInvalidTypes, validateStringLength } = require('../../utils/validators');
+
+const REQUIRED_PARAMS = ['name', 'description', 'language'];
+const EXPECTED_TYPES = {
+    name: 'string',
+    description: 'string',
+    language: 'string'
+};
 
 /********/
 /* GET */
@@ -49,6 +65,13 @@ router.get('/fr', async (req, res) => {
 
 // Get one category
 router.get('/:id', async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            message: 'An error occurred',
+            error: 'Invalid category ID format'
+        });
+    }
+
     let category;
     try {
         category = await Category.findById(req.params.id);
@@ -76,16 +99,9 @@ router.get('/:id', async (req, res, next) => {
 /********/
 
 // Create a new category
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     // Check for missing parameters
-    const missingParams = [];
-    const requiredParams = ['name', 'description', 'language'];
-
-    requiredParams.forEach(param => {
-        if (req.body[param] === undefined || req.body[param] === null || req.body[param] === '') {
-            missingParams.push(param);
-        }
-    });
+    const missingParams = checkMissingParams(req.body, REQUIRED_PARAMS);
 
     if (missingParams.length > 0) {
         return res.status(400).json({
@@ -95,23 +111,40 @@ router.post('/', async (req, res) => {
         });
     }
 
-    // Check if parameters are strings and valid
-    const invalidParams = {};
-    if (typeof req.body.name !== 'string') {
-        invalidParams.name = req.body.name;
-    }
-    if (typeof req.body.description !== 'string') {
-        invalidParams.description = req.body.description;
-    }
-    if (typeof req.body.language !== 'string') {
-        invalidParams.language = req.body.language;
-    }
+    // Check if parameters are  in valid format
+    const invalidParams = checkInvalidTypes(req.body, EXPECTED_TYPES);
 
     if (Object.keys(invalidParams).length > 0) {
         return res.status(400).json({
             message: 'An error occurred', 
-            error: 'Parameters must be strings',
+            error: 'Parameters are in wrong formats',
             invalidParams
+        });
+    }
+
+    // Performance and abuse safeguard
+    const invalidLength = [];
+
+    const nameError = validateStringLength('Name', req.body.name, CATEGORY_NAME_MIN_LENGTH, CATEGORY_NAME_MAX_LENGTH);
+    if (nameError) {
+        invalidLength.push(nameError);
+    }
+
+    const descriptionError = validateStringLength('Description', req.body.description, CATEGORY_DESCRIPTION_MIN_LENGTH, CATEGORY_DESCRIPTION_MAX_LENGTH);
+    if (descriptionError) {
+        invalidLength.push(descriptionError);
+    }
+
+    const languageError = validateStringLength('Language', req.body.language, LANGUAGE_MIN_LENGTH, LANGUAGE_MAX_LENGTH);
+    if (languageError) {
+        invalidLength.push(languageError);
+    }
+
+    if (invalidLength.length > 0) {
+        return res.status(400).json({
+            message: 'An error occurred', 
+            error: 'Validation failed',
+            invalidLength
         });
     }
     
@@ -142,7 +175,7 @@ router.post('/', async (req, res) => {
 });
 
 // Create a list of categories
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', authenticateToken, async (req, res) => {
     const categories = req.body.categories;
 
     // Check if the request body is a non-empty array
@@ -162,14 +195,7 @@ router.post('/bulk', async (req, res) => {
         
         for (const categoryData of categories) {
             // Check for missing parameters
-            const missingParams = [];
-            const requiredParams = ['name', 'description', 'language'];
-
-            requiredParams.forEach(param => {
-                if (categoryData[param] === undefined || categoryData[param] === null || categoryData[param] === '') {
-                    missingParams.push(param);
-                }
-            });
+            const missingParams = checkMissingParams(categoryData, REQUIRED_PARAMS);
 
             if (missingParams.length > 0) {
                 errors.push({
@@ -179,28 +205,53 @@ router.post('/bulk', async (req, res) => {
                 });
             }
 
-            // Check if parameters are strings and valid
-            const invalidParams = {};
-            if (!missingParams.includes('name') && typeof categoryData.name !== 'string') {
-                invalidParams.name = categoryData.name;
-            }
-            if (!missingParams.includes('description') && typeof categoryData.description !== 'string') {
-                invalidParams.description = categoryData.description;
-            }
-            if (!missingParams.includes('language') && typeof categoryData.language !== 'string') {
-                invalidParams.language = categoryData.language;
-            }
+            // Check if parameters are  in valid format 
+            const invalidParams = checkInvalidTypes(categoryData, EXPECTED_TYPES, { missingParams });
 
             if (Object.keys(invalidParams).length > 0) {
                 errors.push({
-                    error: 'Parameters must be strings',
+                    error: 'Parameters are in wrong formats',
                     category: categoryData,
                     invalidParams
                 });
             }      
             
+            // Performance and abuse safeguard
+            const nameError = validateStringLength('Name', categoryData.name, CATEGORY_NAME_MIN_LENGTH, CATEGORY_NAME_MAX_LENGTH);
+            if (nameError) {
+                errors.push({
+                    error: nameError,
+                    category: categoryData,
+                    invalidLength: {
+                        'name': categoryData.name
+                    }
+                });
+            }
+            
+            const descriptionError = validateStringLength('Description', categoryData.description, CATEGORY_DESCRIPTION_MIN_LENGTH, CATEGORY_DESCRIPTION_MAX_LENGTH);
+            if (descriptionError) {
+                errors.push({
+                    error: descriptionError,
+                    category: categoryData,
+                    invalidLength: {
+                        'description': categoryData.description
+                    }
+                });
+            }
+            
+            const languageError = validateStringLength('Language', categoryData.language, LANGUAGE_MIN_LENGTH, LANGUAGE_MAX_LENGTH);
+            if (languageError) {
+                errors.push({
+                    error: languageError,
+                    category: categoryData,
+                    invalidLength: {
+                        'language': categoryData.language
+                    }
+                });
+            }        
+
             // Check if there is invalid language parameter
-            if (!missingParams.includes('language') && !Category.schema.path('language').enumValues.includes(categoryData.language)) {
+            if (!languageError && !missingParams.includes('language') && !Category.schema.path('language').enumValues.includes(categoryData.language)) {
                 errors.push({
                     error: 'Language must be part of [' + Category.schema.path('language').enumValues + ']',
                     category: categoryData,
@@ -250,7 +301,7 @@ router.post('/bulk', async (req, res) => {
 });
 
 // Create a list of categories from csv
-router.post('/csv', upload.single('categories'), async (req, res) => {
+router.post('/csv', authenticateToken, upload.single('categories'), async (req, res) => {
     try {
         const csvData = req.file.buffer.toString();
         
@@ -287,14 +338,7 @@ router.post('/csv', upload.single('categories'), async (req, res) => {
             
             for (const categoryData of categories) {
                 // Check for missing parameters
-                const missingParams = [];
-                const requiredParams = ['name', 'description', 'language'];
-
-                requiredParams.forEach(param => {
-                    if (categoryData[param] === '') {
-                        missingParams.push(param);
-                    }
-                });
+                const missingParams = checkMissingParams(categoryData, REQUIRED_PARAMS);
 
                 if (missingParams.length > 0) {
                     errors.push({
@@ -304,8 +348,42 @@ router.post('/csv', upload.single('categories'), async (req, res) => {
                     });
                 }
                 
+                // Performance and abuse safeguard
+                const nameError = validateStringLength('Name', categoryData.name, CATEGORY_NAME_MIN_LENGTH, CATEGORY_NAME_MAX_LENGTH);
+                if (nameError) {
+                    errors.push({
+                        error: nameError,
+                        category: categoryData,
+                        invalidLength: {
+                            'name': categoryData.name
+                        }
+                    });
+                }
+                
+                const descriptionError = validateStringLength('Description', categoryData.description, CATEGORY_DESCRIPTION_MIN_LENGTH, CATEGORY_DESCRIPTION_MAX_LENGTH);
+                if (descriptionError) {
+                    errors.push({
+                        error: descriptionError,
+                        category: categoryData,
+                        invalidLength: {
+                            'description': categoryData.description
+                        }
+                    });
+                }
+                
+                const languageError = validateStringLength('Language', categoryData.language, LANGUAGE_MIN_LENGTH, LANGUAGE_MAX_LENGTH);
+                if (languageError) {
+                    errors.push({
+                        error: languageError,
+                        category: categoryData,
+                        invalidLength: {
+                            'language': categoryData.language
+                        }
+                    });
+                }  
+
                 // Check if there is invalid language parameter
-                if (!missingParams.includes('language') && !Category.schema.path('language').enumValues.includes(categoryData.language)) {
+                if (!languageError && !missingParams.includes('language') && !Category.schema.path('language').enumValues.includes(categoryData.language)) {
                     errors.push({
                         error: 'Language must be part of [' + Category.schema.path('language').enumValues + ']',
                         category: categoryData,
@@ -367,7 +445,14 @@ router.post('/csv', upload.single('categories'), async (req, res) => {
 /********/
 
 // Update category
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', authenticateToken, async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            message: 'An error occurred',
+            error: 'Invalid category ID format'
+        });
+    }
+
     let category;
     try {
         category = await Category.findById(req.params.id);
@@ -386,26 +471,49 @@ router.patch('/:id', async (req, res, next) => {
     res.category = category;
     next();
 }, async (req, res) => {
-    // Check if parameters are strings and valid
-    const invalidParams = {};
-    if (req.body.name !== undefined && req.body.name !== null && req.body.name !== '' && typeof req.body.name !== 'string') {
-        invalidParams.name = req.body.name;
-    }
-    if (req.body.description !== undefined && req.body.description !== null && req.body.description !== '' && typeof req.body.description !== 'string') {
-        invalidParams.description = req.body.description;
-    }
-    if (req.body.language !== undefined && req.body.language !== null && req.body.language !== '' && typeof req.body.language !== 'string') {
-        invalidParams.language = req.body.language;
-    }
+    // Check if parameters are  in valid format    
+    const invalidParams = checkInvalidTypes(req.body, EXPECTED_TYPES, {  skipIfMissing: true });
 
     // If there are invalid parameters, return an error response
     if (Object.keys(invalidParams).length > 0) {
         return res.status(400).json({
             message: 'An error occurred',
-            error: 'Parameters must be strings',
+            error: 'Parameters are in wrong formats',
             invalidParams
         });
     }    
+
+    // Performance and abuse safeguard
+    const invalidLength = [];
+    if (req.body.name !== undefined && req.body.name !== null && req.body.name !== '' && typeof req.body.name === EXPECTED_TYPES.name) {
+        const nameError = validateStringLength('Name', req.body.name, CATEGORY_NAME_MIN_LENGTH, CATEGORY_NAME_MAX_LENGTH);
+        if (nameError) {
+            invalidLength.push(nameError);
+        }
+    }
+
+    if (req.body.description !== undefined && req.body.description !== null && req.body.description !== '' && typeof req.body.description === EXPECTED_TYPES.description) {
+        const descriptionError = validateStringLength('Description', req.body.description, CATEGORY_DESCRIPTION_MIN_LENGTH, CATEGORY_DESCRIPTION_MAX_LENGTH);
+        if (descriptionError) {
+            invalidLength.push(descriptionError);
+        }
+    }
+
+    if (req.body.language !== undefined && req.body.language !== null && req.body.language !== '' && typeof req.body.language === EXPECTED_TYPES.language) {
+        const languageError = validateStringLength('Language', req.body.language, LANGUAGE_MIN_LENGTH, LANGUAGE_MAX_LENGTH);
+        if (languageError) {
+            invalidLength.push(languageError);
+        }
+    }    
+
+    if (invalidLength.length > 0) {
+        return res.status(400).json({
+            message: 'An error occurred', 
+            error: 'Validation failed',
+            invalidLength
+        });
+    }
+
     if (req.body.language !== undefined && req.body.language !== null && req.body.language !== '' && !Category.schema.path('language').enumValues.includes(req.body.language)) {
         return res.status(400).json({
             message: 'An error occurred',
@@ -454,7 +562,7 @@ router.patch('/:id', async (req, res, next) => {
 /********/
 
 // Delete all categories
-router.delete('/all', async (req, res) => {
+router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const result = await Category.deleteMany({});
 
@@ -471,7 +579,14 @@ router.delete('/all', async (req, res) => {
 });
 
 // Delete category
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticateToken, async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            message: 'An error occurred',
+            error: 'Invalid category ID format'
+        });
+    }
+
     let category;
     try {
         category = await Category.findById(req.params.id);

@@ -1,3 +1,5 @@
+const { LANGUAGES } = require('../../config/apiConfig');
+const { ROOM_MAX_PLAYERS, ROOM_DEFAULT_CHOOSENTIMER, ROOM_DEFAULT_LANGUAGE } = require('../../config/roomConfig');
 const mongoose = require("mongoose");
 
 const roomSchema = new mongoose.Schema({
@@ -11,7 +13,13 @@ const roomSchema = new mongoose.Schema({
     },
     players: { 
         type: [String], 
-        default: []
+        default: [],
+        validate: {
+            validator: function(v) {
+                return v.length > ROOM_MAX_PLAYERS;
+            },
+            message: `Players must be an array of maximum ${ROOM_MAX_PLAYERS} items`
+        }
     },
     currentRound: { 
         type: Number, 
@@ -23,7 +31,7 @@ const roomSchema = new mongoose.Schema({
         choosenCategory: [String],
         choosenTimer: { 
             type: Number, 
-            default: 15
+            default: ROOM_DEFAULT_CHOOSENTIMER
         },
         questions: [
             {
@@ -33,7 +41,7 @@ const roomSchema = new mongoose.Schema({
         ],
         currentQuestionIndex: { 
             type: Number, 
-            default: 20
+            default: 0
         },
         playerAnswers: [
             {
@@ -48,20 +56,20 @@ const roomSchema = new mongoose.Schema({
         },
         quizLanguage: { 
             type: String, 
-            default: 'fr'
+            default: ROOM_DEFAULT_LANGUAGE
         }
       }
     ],
     chatHistory: {
         type: [mongoose.Schema.Types.Mixed],
         validate: {
-          validator: function(value) {
-            return value.every(item => 
-              typeof item === 'string' || 
-              (typeof item === 'object' && item.hasOwnProperty('eng') && item.hasOwnProperty('fr'))
-            );
-          },
-          message: 'Each chat history entry must be either a string or an object with "eng" and "fr" properties.'
+            validator: function(value) {
+                return value.every(item => 
+                    typeof item === 'string' || 
+                    (typeof item === 'object' && LANGUAGES.every(lang => lang in item))
+                );
+            },
+            message: `Each chat history entry must be either a string or an object with properties: ${LANGUAGES.join(', ')}`
         }
     },
     createdAt: { 

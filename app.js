@@ -1,7 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
-const bodyParser = require('body-parser');
-const { connectToMongoDB } = require('./config/db');
+const { connectToMongoDB } = require('./services/db.js');
+const authRoutes = require('./middlewares/authServer.js');
+const userRoutes = require('./api/routes/userRoutes');
 const categoryRoutes = require('./api/routes/categoryRoutes');
 const questionRoutes = require('./api/routes/questionRoutes');
 const roomRoutes = require('./api/routes/roomRoutes');
@@ -13,8 +15,10 @@ connectToMongoDB();
 
 // Middleware setup
 app.use(morgan('dev'));
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
+
+// Use express built-in body parsing with size limit
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
 // Enable CORS for all origins
 app.use((req, res, next) => {
@@ -28,6 +32,8 @@ app.use((req, res, next) => {
 });
 
 // Define route handlers
+app.use('/', authRoutes);
+app.use('/users', userRoutes);
 app.use('/categories', categoryRoutes);
 app.use('/questions', questionRoutes);
 app.use('/rooms', roomRoutes);

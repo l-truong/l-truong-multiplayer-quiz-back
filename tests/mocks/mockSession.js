@@ -1,5 +1,3 @@
-const mongoose = require('mongoose');
-
 const mockSession = {
     startTransaction: jest.fn(),
     commitTransaction: jest.fn(),

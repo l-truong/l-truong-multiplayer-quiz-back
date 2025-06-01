@@ -92,24 +92,47 @@
 	jeu: ajouter les images question.images
 ```
 
-## >> V1
+## V1
 ```
 -env
 -hébergement
 ```
 
-## V1.1
+## >> V1.1
+```
+[FRONT BACKOFFICE]
+- Admin categories and questions management
+[BACK]
+- Model user
+- Routes api /user
+	GET 
+	POST
+- JWT login
+	/login
+	/token
+	/logout
+- Evolution des api 
+	/categories
+	/questions
+- Evolution des test Unitaires
+	GET
+	POST
+	UPDATE
+	DELETE
+```
+
+## V1.2
 ```
 - Docker
 ```
 
-## V1.2
+## V1.3
 ```
 [BACK]
 - Tests d'intégrations socket
 ```
 
-## V1.3
+## V1.4
 ```
 [BACK]
 - Evolution des models
@@ -124,7 +147,7 @@
 	jeu: ajouter les icons aux categories et transformer checkbox en boutons
 ```
 
-## V1.4
+## V1.5
 ```
 [BACK]
 - Evolution Socket
@@ -133,7 +156,7 @@
 - Permettre à l'utilisateur de choisir une couleur pour le chat et une image de profil
 ```
 
-## V1.5
+## V1.6
 ```
 [BACK]
 - Evolution du model questions
@@ -149,7 +172,7 @@
 	resultats: calculer le score finale avec la difficulté de la question
 ```
 
-## V1.6
+## V1.7
 ```
 [FRONT]
 - Evolution Multijoueur
@@ -182,12 +205,6 @@
 ```
 
 ## V.3
-```
-[FRONT]
-- Admin category and questions managements
-```
-
-## V.4
 ```
 [BACK]
 - Evolution Socket

@@ -45,4 +45,9 @@ function arrayToCustomCsvBuffer(headers, data) {
     return Buffer.from([headers.join(';'), ...rows].join('\n'));
 }
 
-module.exports = { convertObjectIdsToStrings, convertObjectIdsToStringsInObject, convertObjectIdToString, arrayToCustomCsvBuffer };
+module.exports = { 
+    convertObjectIdsToStrings, 
+    convertObjectIdsToStringsInObject, 
+    convertObjectIdToString, 
+    arrayToCustomCsvBuffer 
+};
