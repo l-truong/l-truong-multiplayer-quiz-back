@@ -13,7 +13,7 @@ const REFRESH_TOKEN_EXPIRATION = '1h';
 const USER_USERNAME_MIN_LENGTH = 3;
 const USER_USERNAME_MAX_LENGTH = 15;
 // Regex for username (no spaces, no special chars except _ and -)
-const USER_USERNAME_REGEX = new RegExp(`^[a-zA-Z0-9_-]{${USER_USERNAME_MIN_LENGTH},${USER_USERNAME_MAX_LENGTH}}$`)
+const USER_USERNAME_REGEX = new RegExp(`^[a-zA-Z0-9_-]{${USER_USERNAME_MIN_LENGTH},${USER_USERNAME_MAX_LENGTH}}$`);
 const USER_PASSWORD_MIN_LENGTH = 8;
 const USER_PASSWORD_MAX_LENGTH = 30;
 // Regex for password (at least 8 chars, includes uppercase, lowercase, and a number, and a speciap character, no spaces)
