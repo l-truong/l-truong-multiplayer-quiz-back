@@ -1031,7 +1031,6 @@ describe('POST /questions/bulk', () => {
 
         Question.prototype.save.mockResolvedValue(newQuestions);
         const res = await authPost(app, '/questions/bulk', { questions: newQuestions });
-        console.log("res.body", res.body)
         expect(res.status).toBe(400);
         expect(res.body.message).toBe('Some questions could not be processed');        
         expect(res.body.length).toBe(12);
@@ -2006,7 +2005,7 @@ describe('PATCH /categories/:oldCategoryId/:newCategoryId', () => {
     it('should return 200 if oldCategoryId and newCategoryId are the same', async () => { 
         const res = await authPatch(app, '/questions/categories/671e6e7393cee089f87f1f3d/671e6e7393cee089f87f1f3d');
         expect(res.status).toBe(200);
-        expect(res.body.message).toBe('No change occured;oldCategoryId and newCategoryId are the same');
+        expect(res.body.message).toBe('No change occured, oldCategoryId and newCategoryId are the same');
     });
 
     it('should return 400 if oldCategoryId does not exist in any questions', async () => {

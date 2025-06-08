@@ -24,11 +24,46 @@ const EXPECTED_TYPES = {
     imageUrl: 'string'
 };
 
+/**
+ * @swagger
+ * tags:
+ *   name: Questions
+ *   description: API for questions
+ */
+
 /********/
 /* GET */
 /********/
-
-// Get all questions
+/**
+ * @swagger
+ * /questions:
+ *   get:
+ *     summary: Retrieve all questions or filter by category IDs
+ *     tags: [Questions]
+ *     parameters:
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: objectId
+ *         style: form
+ *         explode: true
+ *         description: Filter questions by one or more category IDs (MongoDB ObjectId)
+ *         example: ["67c747aaf2b67cb4de5c3f05", "67ca1bd9fa661fcb08480484"]
+ *     responses:
+ *       200:
+ *         description: A list of questions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Question'
+ *       500:
+ *         description: Server error or invalid category query format
+ */
 router.get('/', async (req, res) => {
     try {
         if (req.query.categories !== undefined) {
@@ -74,7 +109,36 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get all english questions
+/**
+ * @swagger
+ * /questions/eng:
+ *   get:
+ *     summary: Retrieve English-language questions, optionally filtered by category IDs
+ *     tags: [Questions]
+ *     parameters:
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: objectId
+ *         style: form
+ *         explode: true
+ *         description: Filter English-language questions by one or more category IDs (MongoDB ObjectId)
+ *         example: ["67c747aaf2b67cb4de5c3f05", "67ca1bd9fa661fcb08480484"]
+ *     responses:
+ *       200:
+ *         description: A list of English-language questions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Question'
+ *       500:
+ *         description: Server error or invalid category query format
+ */
 router.get('/eng', async (req, res, next) => {
     let categories;
     try {
@@ -151,7 +215,38 @@ router.get('/eng', async (req, res, next) => {
     }
 });
 
-// Get all french questions
+/**
+ * @swagger
+ * /questions/fr:
+ *   get:
+ *     summary: Retrieve French-language questions, optionally filtered by category IDs
+ *     tags: [Questions]
+ *     parameters:
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: objectId
+ *         style: form
+ *         explode: true
+ *         description: Filter French-language questions by one or more category IDs (MongoDB ObjectId)
+ *         example: ["67c747aaf2b67cb4de5c3f05", "67ca1bd9fa661fcb08480484"]
+ *     responses:
+ *       200:
+ *         description: A list of French-language questions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Question'
+ *       404:
+ *         description: No French-language categories found
+ *       500:
+ *         description: Server error or invalid category query format
+ */
 router.get('/fr', async (req, res, next) => {
     let categories;
     try {     
@@ -226,7 +321,45 @@ router.get('/fr', async (req, res, next) => {
     }
 });
 
-// Get random array of questions of length size
+/**
+ * @swagger
+ * /questions/random/{random}:
+ *   get:
+ *     summary: Retrieve a random selection of questions
+ *     tags: [Questions]
+ *     parameters:
+ *       - in: path
+ *         name: random
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *         description: Number of random questions to return (1–50)
+ *       - in: query
+ *         name: categories
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: objectId
+ *         style: form
+ *         explode: true
+ *         description: Optional category ID filter
+ *     responses:
+ *       200:
+ *         description: A list of randomly selected questions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Question'
+ *       404:
+ *         description: Missing or invalid `random` parameter
+ *       500:
+ *         description: Server error or invalid query format
+ */
 router.get('/random/:random?', async (req, res) => {
     // Check for missing parameters random
     const { random } = req.params;
@@ -291,7 +424,78 @@ router.get('/random/:random?', async (req, res) => {
     } 
 });
 
-// Get stats questions for each categories
+/**
+ * @swagger
+ * /questions/stats:
+ *   get:
+ *     summary: Get question count
+ *     tags: [Questions]
+ *     responses:
+ *       200:
+ *         description: Statistics about question occurrences per category
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                     description: Name of the category
+ *                     example: Geography
+ *                   categoryId:
+ *                     type: string
+ *                     format: objectId
+ *                     description: ID of the category
+ *                   occurence:
+ *                     type: integer
+ *                     description: Number of questions in this category
+ *       404:
+ *         description: Language not found or no categories for the specified language
+ *       500:
+ *         description: Server error
+ */
+/**
+ * @swagger
+ * /questions/stats/{lang}:
+ *   get:
+ *     summary: Get question count per category
+ *     tags: [Questions]
+ *     parameters:
+ *       - in: path
+ *         name: lang
+ *         required: false
+ *         schema:
+ *           type: string
+ *           example: eng
+ *         description: Optional language code to filter categories (e.g. 'eng', 'fr'); defaults to all languages
+ *     responses:
+ *       200:
+ *         description: Statistics about question occurrences per category
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                     description: Name of the category
+ *                     example: Geography
+ *                   categoryId:
+ *                     type: string
+ *                     format: objectId
+ *                     description: ID of the category
+ *                   occurence:
+ *                     type: integer
+ *                     description: Number of questions in this category
+ *       404:
+ *         description: Language not found or no categories for the specified language
+ *       500:
+ *         description: Server error
+ */
 router.get('/stats/:lang?', async (req, res, next) => {
     let categories;
     try {
@@ -366,7 +570,34 @@ router.get('/stats/:lang?', async (req, res, next) => {
     }
 });
 
-// Get one question
+/**
+ * @swagger
+ * /questions/{id}:
+ *   get:
+ *     summary: Get a question by ID
+ *     tags: [Questions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: objectId
+ *         description: ID of the question to retrieve
+ *     responses:
+ *       200:
+ *         description: Question found successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Question'
+ *       400:
+ *         description: Invalid question ID format
+ *       404:
+ *         description: Question not found
+ *       500:
+ *         description: Server error
+ */
 router.get('/:id', async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({
@@ -400,8 +631,63 @@ router.get('/:id', async (req, res, next) => {
 /********/
 /* POST */
 /********/
-
-// Create a new question
+/**
+ * @swagger
+ * /questions:
+ *   post:
+ *     summary: Create a new question
+ *     tags: [Questions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - questionText
+ *               - options
+ *               - correctAnswer
+ *               - categoryId
+ *               - imageUrl
+ *             properties:
+ *               questionText:
+ *                 type: string
+ *                 description: The text of the question
+ *               options:
+ *                 type: array
+ *                 description: Array of possible answer options (must be unique and exactly 4)
+ *                 items:
+ *                   type: string
+ *               correctAnswer:
+ *                 type: string
+ *                 description: The correct answer (must be one of the options)
+ *               explanation:
+ *                 type: string
+ *                 description: Optional explanation for the correct answer
+ *               categoryId:
+ *                 type: string
+ *                 description: The category ID the question belongs to
+ *               imageUrl:
+ *                 type: string
+ *                 description: Image URL for the question
+ *     responses:
+ *       201:
+ *         description: Question created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Question'
+ *       400:
+ *         description: Bad request - missing or invalid parameters
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       404:
+ *         description: Category not found
+ *       500:
+ *         description: Server error
+ */
 router.post('/', authenticateToken, async (req, res, next) => {
     let categories;
     try { 
@@ -563,7 +849,79 @@ router.post('/', authenticateToken, async (req, res, next) => {
     }
 });
 
-// Create a list of questions
+/**
+ * @swagger
+ * /questions/bulk:
+ *   post:
+ *     summary: Create multiple questions in bulk
+ *     tags: [Questions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - questions
+ *             properties:
+ *               questions:
+ *                 type: array
+ *                 description: List of questions to be created
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - questionText
+ *                     - options
+ *                     - correctAnswer
+ *                     - categoryId
+ *                     - imageUrl
+ *                   properties:
+ *                     questionText:
+ *                       type: string
+ *                       description: The text of the question
+ *                     options:
+ *                       type: array
+ *                       description: Array of possible answer options (must be unique and exactly 4)
+ *                       items:
+ *                         type: string
+ *                     correctAnswer:
+ *                       type: string
+ *                       description: The correct answer (must be one of the options)
+ *                     explanation:
+ *                       type: string
+ *                       description: Optional explanation for the correct answer
+ *                     categoryId:
+ *                       type: string
+ *                       description: The category ID the question belongs to
+ *                     imageUrl:
+ *                       type: string
+ *                       description: Image URL for the question
+ *     responses:
+ *       201:
+ *         description: Questions created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Questions created successfully
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Question'
+ *       400:
+ *         description: Bad request - validation errors in input data
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       404:
+ *         description: Category not found
+ *       500:
+ *         description: Server error
+ */
 router.post('/bulk', authenticateToken, async (req, res, next) => { 
     let categories;
     try {
@@ -799,7 +1157,76 @@ router.post('/bulk', authenticateToken, async (req, res, next) => {
     }
 });
 
-// Create a list of questions from csv
+/**
+ * @swagger
+ * /questions/csv:
+ *   post:
+ *     summary: Upload and create multiple questions from a CSV file
+ *     tags: [Questions]
+ *     security:
+ *       - bearerAuth: []
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               questions:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV file containing the questions
+ *     responses:
+ *       201:
+ *         description: Questions created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Questions created successfully
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Question'
+ *       400:
+ *         description: Bad request - validation errors in uploaded CSV
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Some questions could not be processed
+ *                 length:
+ *                   type: integer
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       error:
+ *                         type: string
+ *                       question:
+ *                         type: object
+ *                       invalidParams:
+ *                         type: object
+ *                       missing:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       404:
+ *         description: Category not found
+ *       500:
+ *         description: Internal server error or failed to process CSV
+ */
 router.post('/csv', authenticateToken, upload.single('questions'), async (req, res, next) => { 
     let categories;
     try { 
@@ -1046,7 +1473,98 @@ router.post('/csv', authenticateToken, upload.single('questions'), async (req, r
 /* UPDATE */
 /********/
 
-// Change toutes les id d'une categorie à une autre
+/**
+ * @swagger
+ * /questions/categories/{oldCategoryId}/{newCategoryId}:
+ *   patch:
+ *     summary: Update questions from one category to another
+ *     description: Change the categoryId of all questions from `oldCategoryId` to `newCategoryId`.
+ *     tags:
+ *       - Questions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: oldCategoryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ObjectId of the category to replace
+ *       - in: path
+ *         name: newCategoryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ObjectId of the new category
+ *     responses:
+ *       201:
+ *         description: Category ID updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: CategoryId updated successfully
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Question'
+ *       200:
+ *         description: No change occurred when both category IDs are the same
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: No change occured, oldCategoryId and newCategoryId are the same
+ *       400:
+ *         description: Bad request due to invalid or missing parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Invalid ObjectId format
+ *                 invalidParams:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: string
+ *       404:
+ *         description: Categories or questions not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Questions not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while updating CategoryId
+ *                 error:
+ *                   type: string
+ *                   example: Some internal error message
+ */
 router.patch('/categories//', authenticateToken, async (req, res) =>{
     return res.status(400).json({ 
         message: 'An error occurred',
@@ -1116,7 +1634,7 @@ router.patch('/categories/:oldCategoryId/:newCategoryId?', authenticateToken, as
     // Check if oldCategoryId and newCategoryId are different
     if (req.params.oldCategoryId === req.params.newCategoryId) {
         return res.status(200).json({
-            message: 'No change occured;oldCategoryId and newCategoryId are the same'
+            message: 'No change occured, oldCategoryId and newCategoryId are the same'
         });
     }
 
@@ -1165,7 +1683,109 @@ router.patch('/categories/:oldCategoryId/:newCategoryId?', authenticateToken, as
     }
 });
 
-// Update question
+/**
+ * @swagger
+ * /questions/{id}:
+ *   patch:
+ *     summary: Update a question by ID
+ *     description: Updates fields of a question, including text, options, correct answer, category, explanation, and image URL.
+ *     tags:
+ *       - Questions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: The question's ObjectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 60f5a4f3c9d0b2441c5f3a7a
+ *     requestBody:
+ *       description: Fields to update (at least one)
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               questionText:
+ *                 type: string
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Must be an array with exactly [QUESTION_MAX_OPTIONS] unique, non-empty strings
+ *               correctAnswer:
+ *                 type: string
+ *               categoryId:
+ *                 type: string
+ *                 description: Must be a valid category ObjectId
+ *               explanation:
+ *                 type: string
+ *               imageUrl:
+ *                 type: string
+ *             example:
+ *               questionText: "What is the capital of France?"
+ *               options: ["Paris", "London", "Berlin", "Madrid"]
+ *               correctAnswer: "Paris"
+ *               categoryId: "60f4a23b8b3e4c3f144a3a7a"
+ *               explanation: "Paris is the capital of France."
+ *               imageUrl: "https://example.com/image.png"
+ *     responses:
+ *       200:
+ *         description: Question updated or no fields changed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/Question'
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: No fields were updated
+ *       400:
+ *         description: Validation error or invalid ObjectId format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                 invalidParams:
+ *                   type: object
+ *                 invalidLength:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       404:
+ *         description: Question or categories not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 router.patch('/:id', authenticateToken, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({
@@ -1411,8 +2031,43 @@ router.patch('/:id', authenticateToken, async (req, res, next) => {
 /********/
 /* DELETE */
 /********/
-
-// Delete all questions
+/**
+ * @swagger
+ * /questions/all:
+ *   delete:
+ *     summary: Delete all questions
+ *     description: Deletes all questions from the database. Use with caution.
+ *     tags:
+ *       - Questions
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All questions deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: All questions deleted
+ *                 deletedCount:
+ *                   type: integer
+ *                   example: 42
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ */
 router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const result = await Question.deleteMany({});
@@ -1429,7 +2084,111 @@ router.delete('/all', authenticateToken, async (req, res) => {
     }
 });
 
-// Delete question
+/**
+ * @swagger
+ * /questions/{id}:
+ *   delete:
+ *     summary: Delete a question by ID
+ *     tags:
+ *       - Questions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The ObjectId of the question to delete
+ *         schema:
+ *           type: string
+ *           example: 60f7a1b2c1234d5678ef9012
+ *     responses:
+ *       200:
+ *         description: Question deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Question deleted
+ *                 deletedQuestion:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 60f7a1b2c1234d5678ef9012
+ *                     questionText:
+ *                       type: string
+ *                       example: What is the capital of France?
+ *                     options:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["Paris", "Berlin", "Madrid", "Rome"]
+ *                     correctAnswer:
+ *                       type: string
+ *                       example: Paris
+ *                     explanation:
+ *                       type: string
+ *                       example: Paris is the capital city of France.
+ *                     categoryId:
+ *                       type: string
+ *                       example: 60f7a1b2c1234d5678ef9010
+ *                     imageUrl:
+ *                       type: string
+ *                       example: https://example.com/image.png
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2023-01-01T12:00:00.000Z
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2023-02-01T12:00:00.000Z
+ *                     __v:
+ *                       type: integer
+ *                       example: 0
+ *       400:
+ *         description: Invalid question ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Invalid question ID format
+ *       404:
+ *         description: Question not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Question not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error message
+ */
 router.delete('/:id', authenticateToken, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({

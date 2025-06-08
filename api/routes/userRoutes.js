@@ -19,11 +19,69 @@ const EXPECTED_TYPES = {
     password: 'string'
 };
 
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: API for users
+ */
+
 /********/
 /* GET */
 /********/
-
-// Get all users
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Retrieve all users
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: A list of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     example: 60f7a1b2c1234d5678ef9012
+ *                   username:
+ *                     type: string
+ *                     example: johndoe
+ *                   email:
+ *                     type: string
+ *                     example: johndoe@example.com
+ *                   role:
+ *                     type: string
+ *                     example: admin
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *                     example: 2023-01-01T12:00:00.000Z
+ *                   updatedAt:
+ *                     type: string
+ *                     format: date-time
+ *                     example: 2023-02-01T12:00:00.000Z
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error message
+ */
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const users = await User.find();
@@ -39,8 +97,75 @@ router.get('/', authenticateToken, async (req, res) => {
 /********/
 /* POST */
 /********/
-
-// Create a new user
+/**
+ * @swagger
+ * /users:
+ *   post:
+ *     summary: Create a new user
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       description: User data to create a new user
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username (letters, numbers, hyphens, underscores; length between USER_USERNAME_MIN_LENGTH and USER_USERNAME_MAX_LENGTH)
+ *                 example: johndoe_123
+ *               password:
+ *                 type: string
+ *                 description: Password (at least one uppercase, one lowercase, one number; length between USER_PASSWORD_MIN_LENGTH and USER_PASSWORD_MAX_LENGTH)
+ *                 example: StrongPass123
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Bad request - missing or invalid parameters or username already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Missing parameters / Parameters are in wrong formats / User already exists with this username
+ *                 missing:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["username", "password"]
+ *                 invalidParams:
+ *                   type: object
+ *                   example: { "username": "invalidUser" }
+ *                 invalidFormat:
+ *                   type: object
+ *                   example: { "password": "weakpass" }
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error message
+ */
 router.post('/', authenticateToken, async (req, res) => {
     // Check for missing parameters
     const missingParams = checkMissingParams(req.body, REQUIRED_PARAMS);

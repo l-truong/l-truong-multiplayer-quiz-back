@@ -27,11 +27,61 @@ const EXPECTED_TYPES_TOKEN = {
   token: 'string'
 };
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication and token management
+ */
 
 /********/
 /* POST */
 /********/
-// User login : generate access + refresh tokens
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: User login to obtain access and refresh tokens
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username of the user
+ *                 example: admin01
+ *               password:
+ *                 type: string
+ *                 description: User's password
+ *                 example: P@ssw0rd123
+ *     responses:
+ *       200:
+ *         description: Tokens generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: JWT access token
+ *                 refreshToken:
+ *                   type: string
+ *                   description: JWT refresh token
+ *       400:
+ *         description: Missing or invalid parameters or validation errors
+ *       401:
+ *         description: Unauthorized - invalid username or password
+ *       500:
+ *         description: Server error
+ */
 router.post('/login', async (req, res) => {
   // Check for missing parameters
   const requiredParams = ['username', 'password'];
@@ -110,7 +160,44 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Refresh access token using a refresh token
+/**
+ * @swagger
+ * /token:
+ *   post:
+ *     summary: Refresh access token using a valid refresh token
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Refresh token
+ *     responses:
+ *       200:
+ *         description: New access token generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: New JWT access token
+ *       400:
+ *         description: Missing or invalid parameters or token too long
+ *       403:
+ *         description: Forbidden - invalid or expired refresh token
+ *       500:
+ *         description: Server error
+ */
 router.post('/token', authenticateToken, (req, res) => {  
   // Check for missing parameters
   const requiredParams = ['token'];
@@ -164,14 +251,40 @@ router.post('/token', authenticateToken, (req, res) => {
       error: err.message
     });
   }
-})
+});
 
 
 /********/
 /* DELETE */
 /********/
-
-// Logout : remove refresh token
+/**
+ * @swagger
+ * /logout:
+ *   delete:
+ *     summary: Logout user by invalidating the refresh token
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Refresh token to invalidate
+ *     responses:
+ *       204:
+ *         description: Successfully logged out, token invalidated
+ *       400:
+ *         description: Missing or invalid parameters or token too long
+ *       404:
+ *         description: Token not found (already invalidated)
+ */
 router.delete('/logout', authenticateToken, (req, res) => {
   // Check for missing parameters
   const requiredParams = ['token'];
@@ -212,6 +325,6 @@ router.delete('/logout', authenticateToken, (req, res) => {
   refreshTokens = refreshTokens.filter(token => token !== req.body.token);
 
   return res.sendStatus(204);  
-})
+});
 
 module.exports = router;

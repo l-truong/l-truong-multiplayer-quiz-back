@@ -20,11 +20,34 @@ const EXPECTED_TYPES = {
     language: 'string'
 };
 
+/**
+ * @swagger
+ * tags:
+ *   name: Categories
+ *   description: API for categories
+ */
+
 /********/
 /* GET */
 /********/
-
-// Get all categories
+/**
+ * @swagger
+ * /categories:
+ *   get:
+ *     summary: Retrieve all categories
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: A list of categories
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Category'
+ *       500:
+ *         description: Server error
+ */
 router.get('/', async (req, res) => {
     try {
         const categories = await Category.find();
@@ -37,7 +60,24 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get all english categories
+/**
+ * @swagger
+ * /categories/eng:
+ *   get:
+ *     summary: Retrieve all English categories
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: A list of English categories
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Category'
+ *       500:
+ *         description: Server error
+ */
 router.get('/eng', async (req, res) => {
     try {
         const categories = await Category.find({ language: 'eng' });
@@ -50,7 +90,24 @@ router.get('/eng', async (req, res) => {
     }
 });
 
-// Get all french categories
+/**
+ * @swagger
+ * /categories/fr:
+ *   get:
+ *     summary: Retrieve all French categories
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: A list of French categories
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Category'
+ *       500:
+ *         description: Server error
+ */
 router.get('/fr', async (req, res) => {
     try {
         const categories = await Category.find({ language: 'fr' });
@@ -63,7 +120,33 @@ router.get('/fr', async (req, res) => {
     }
 });
 
-// Get one category
+/**
+ * @swagger
+ * /categories/{id}:
+ *   get:
+ *     summary: Get a single category by ID
+ *     tags: [Categories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The category ID
+ *     responses:
+ *       200:
+ *         description: A single category
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: Invalid ID format
+ *       404:
+ *         description: Category not found
+ *       500:
+ *         description: Server error
+ */
 router.get('/:id', async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({
@@ -97,8 +180,69 @@ router.get('/:id', async (req, res, next) => {
 /********/
 /* POST */
 /********/
-
-// Create a new category
+/**
+ * @swagger
+ * /categories:
+ *   post:
+ *     summary: Create a new category
+ *     description: Adds a new category to the system. Requires authentication.
+ *     tags:
+ *       - Categories
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - description
+ *               - language
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Name of the category
+ *                 example: "Science"
+ *               description:
+ *                 type: string
+ *                 description: Description of the category
+ *                 example: "All things science-related"
+ *               language:
+ *                 type: string
+ *                 description: Language code
+ *                 enum: [eng, fr]
+ *                 example: eng
+ *     responses:
+ *       201:
+ *         description: Category created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: Bad request (missing or invalid parameters)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Missing parameters
+ *                 missing:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       500:
+ *         description: Internal server error
+ */
 router.post('/', authenticateToken, async (req, res) => {
     // Check for missing parameters
     const missingParams = checkMissingParams(req.body, REQUIRED_PARAMS);
@@ -174,7 +318,97 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 });
 
-// Create a list of categories
+/**
+ * @swagger
+ * /categories/bulk:
+ *   post:
+ *     summary: Create multiple categories in bulk
+ *     description: Adds multiple categories at once. Requires authentication. If any category fails validation, none are saved.
+ *     tags:
+ *       - Categories
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - categories
+ *             properties:
+ *               categories:
+ *                 type: array
+ *                 description: Array of category objects to create
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - name
+ *                     - description
+ *                     - language
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       example: "Geography"
+ *                     description:
+ *                       type: string
+ *                       example: "Categories related to geography"
+ *                     language:
+ *                       type: string
+ *                       enum: [eng, fr]
+ *                       example: "eng"
+ *     responses:
+ *       201:
+ *         description: All categories created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Categories created successfully
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: One or more categories failed validation
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Some categories could not be processed
+ *                 length:
+ *                   type: integer
+ *                   example: 2
+ *                 errors:
+ *                   type: array
+ *                   description: Array of error details
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       error:
+ *                         type: string
+ *                         example: Missing parameters
+ *                       missing:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       invalidParams:
+ *                         type: object
+ *                       invalidLength:
+ *                         type: object
+ *                       category:
+ *                         type: object
+ *       401:
+ *         description: Unauthorized – missing or invalid token
+ *       500:
+ *         description: Server error
+ */
 router.post('/bulk', authenticateToken, async (req, res) => {
     const categories = req.body.categories;
 
@@ -300,7 +534,90 @@ router.post('/bulk', authenticateToken, async (req, res) => {
     }
 });
 
-// Create a list of categories from csv
+/**
+ * @swagger
+ * /categories/csv:
+ *   post:
+ *     summary: Bulk create categories via CSV upload
+ *     description: Accepts a CSV file (semicolon-separated) containing categories and creates them in bulk. Requires authentication. If any category fails validation, none are saved.
+ *     tags:
+ *       - Categories
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - categories
+ *             properties:
+ *               categories:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV file containing categories with columns `name`, `description`, and `language`
+ *     responses:
+ *       201:
+ *         description: Categories created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Categories created successfully
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: Some categories could not be processed due to validation errors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Some categories could not be processed
+ *                 length:
+ *                   type: integer
+ *                   example: 2
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       error:
+ *                         type: string
+ *                       missing:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       invalidLength:
+ *                         type: object
+ *                       invalidParams:
+ *                         type: object
+ *                       category:
+ *                         type: object
+ *       401:
+ *         description: Unauthorized – missing or invalid token
+ *       500:
+ *         description: Server error or CSV processing failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Failed to process CSV
+ */
 router.post('/csv', authenticateToken, upload.single('categories'), async (req, res) => {
     try {
         const csvData = req.file.buffer.toString();
@@ -443,8 +760,105 @@ router.post('/csv', authenticateToken, upload.single('categories'), async (req, 
 /********/
 /* UPDATE */
 /********/
-
-// Update category
+/**
+ * @swagger
+ * /categories/{id}:
+ *   patch:
+ *     summary: Update an existing category partially
+ *     description: Update one or more fields (name, description, language) of a category by ID. Requires authentication.
+ *     tags:
+ *       - Categories
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: Category ID to update
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 60d21b4667d0d8992e610c85
+ *     requestBody:
+ *       description: Fields to update (any subset of name, description, language)
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: [YOUR_CATEGORY_NAME_MIN_LENGTH]
+ *                 maxLength: [YOUR_CATEGORY_NAME_MAX_LENGTH]
+ *               description:
+ *                 type: string
+ *                 minLength: [YOUR_CATEGORY_DESCRIPTION_MIN_LENGTH]
+ *                 maxLength: [YOUR_CATEGORY_DESCRIPTION_MAX_LENGTH]
+ *               language:
+ *                 type: string
+ *                 enum:
+ *                   - eng
+ *                   - fr
+ *                   # ...add your supported languages here
+ *             example:
+ *               name: Updated Category Name
+ *               description: Updated description text.
+ *               language: eng
+ *     responses:
+ *       200:
+ *         description: Category updated successfully or no fields were updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - $ref: '#/components/schemas/Category'
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: No fields were updated
+ *       400:
+ *         description: Invalid ID format or parameter validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Invalid category ID format
+ *                 invalidParams:
+ *                   type: object
+ *       404:
+ *         description: Category not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Category not found
+ *       500:
+ *         description: Server error updating the category
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Database error
+ */
 router.patch('/:id', authenticateToken, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({
@@ -560,8 +974,44 @@ router.patch('/:id', authenticateToken, async (req, res, next) => {
 /********/
 /* DELETE */
 /********/
-
-// Delete all categories
+/**
+ * @swagger
+ * /categories/all:
+ *   delete:
+ *     summary: Delete all categories
+ *     description: Deletes all categories from the database. Requires authentication.
+ *     tags:
+ *       - Categories
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All categories deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: All categories deleted
+ *                 deletedCount:
+ *                   type: integer
+ *                   example: 42
+ *       500:
+ *         description: Server error deleting categories
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Database error
+ */
 router.delete('/all', authenticateToken, async (req, res) => {
     try {
         const result = await Category.deleteMany({});
@@ -578,7 +1028,77 @@ router.delete('/all', authenticateToken, async (req, res) => {
     }
 });
 
-// Delete category
+/**
+ * @swagger
+ * /categories/{id}:
+ *   delete:
+ *     summary: Delete a category by ID
+ *     description: Deletes a category by its ID. Requires authentication.
+ *     tags:
+ *       - Categories
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         description: Category ID to delete
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 60d21b4667d0d8992e610c85
+ *     responses:
+ *       200:
+ *         description: Category deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Category deleted
+ *                 deletedCategory:
+ *                   $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: Invalid category ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Invalid category ID format
+ *       404:
+ *         description: Category not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Category not found
+ *       500:
+ *         description: Server error deleting category
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred
+ *                 error:
+ *                   type: string
+ *                   example: Database error
+ */
 router.delete('/:id', authenticateToken, async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
         return res.status(400).json({

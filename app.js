@@ -1,4 +1,6 @@
 require('dotenv').config();
+const swaggerUI = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger.js');
 const express = require('express');
 const morgan = require('morgan');
 const { connectToMongoDB } = require('./services/db.js');
@@ -37,6 +39,7 @@ app.use('/users', userRoutes);
 app.use('/categories', categoryRoutes);
 app.use('/questions', questionRoutes);
 app.use('/rooms', roomRoutes);
+app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 
 // 404 error handling middleware
 app.use((req, res, next) => {
